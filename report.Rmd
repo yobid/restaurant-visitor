@@ -1,0 +1,99 @@
+---
+title: "Recruit Restaurant Visitor Forecasting"
+author: "Yoan Bidart"
+date: "2/24/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+For the Kaggle Competition "Recruit Restaurant Visitor Forecasting", the aim is to predict the number of visitors for various restaurants in Japan. We have multiple datasets so some features engineering is needed as well as some machine learning skills. 
+
+## Preprocessing
+
+```{r, include=FALSE}
+library(dplyr)
+require(lubridate)
+library(caret)
+library(ModelMetrics)
+library(ggplot2)
+library(gridExtra)
+```
+We choose to use the air datasets, and merge together to match all the informations we need on the restaurants.
+```{r}
+airReserve <- read.csv(file="air_reserve.csv")
+airInfo <- read.csv(file="air_store_info.csv")
+airVisit <- read.csv(file="air_visit_data.csv")
+date <- read.csv(file="date_info.csv")
+str(airReserve)
+str(airInfo)
+str(airVisit)
+str(date)
+```
+
+## Feature Engineering
+We will create some date features and merge the datasets.
+```{r}
+#Date features engineering
+airReserve$visit_datetime <- ymd_hms(airReserve$visit_datetime)
+airReserve$visit_date <- date(airReserve$visit_datetime)
+#Summarise visitors by date
+airReserve <- select(airReserve, -(reserve_datetime))
+airReserve <- aggregate(airReserve$reserve_visitors, 
+                        by=list(airReserve$air_store_id, airReserve$visit_date), 
+                        FUN=sum)
+names(airReserve) <- c("air_store_id", "visit_date", "reserve_visitors")
+#create weekday variable
+airReserve$wday <- weekdays(airReserve$visit_date)
+#Merge datasets
+df <- merge(airReserve, airInfo)
+df <- merge(df, airVisit, all.x=TRUE)
+#Remove Nas
+airTraining <- df[!is.na(df$visitors),] 
+#air area name is correlated with longitude and latitude so we will remove it
+airTraining <- select(airTraining, -air_area_name)
+airTraining <- arrange(airTraining, by=visit_date)
+str(airTraining)
+```
+Let's plot our features against visitors!
+```{r, echo=FALSE}
+a <- qplot(visit_date, visitors, data=airTraining)
+b <- qplot(reserve_visitors, visitors, data=airTraining)
+c <- qplot(air_genre_name, visitors, data=airTraining)
+d <- qplot(latitude, visitors, data=airTraining)
+e <- qplot(longitude, visitors, data=airTraining)
+f <- qplot(wday, visitors, data=airTraining)
+grid.arrange(a, b, c, d, e, f, nrow=2, ncol=3)
+```
+
+## Machine Learning
+Create train and test sets.
+```{r}
+set.seed(12345)
+inTrain <- createDataPartition(airTraining$visitors, p=0.7, list=FALSE)
+airTrain <- airTraining[inTrain, ]
+airTest <- airTraining[-inTrain, ]
+```
+
+Fit the model.
+```{r echo=FALSE}
+load(file="airfit.Rdata")
+```
+
+```{r eval=FALSE}
+airTrainA <- select(airTrain, -c(air_store_id, wday))
+controls <- trainControl(method="repeatedcv", number=10, repeats=3)
+airfit <- train(visitors~., data=airTrainA, method="rf", metric="RMSE", 
+                trainControl=controls)
+```
+Prediction and evaluation.
+```{r}
+airTestA <- select(airTest, -c(air_store_id, visitors, wday))
+airPred <- predict(airfit, airTestA)
+accu <- rmsle(airTest$visitors,airPred)
+```
+Our Root Mean Square Logarithmic Error is `r accu`. 
