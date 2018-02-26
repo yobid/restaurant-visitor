@@ -129,6 +129,12 @@ $(document).ready(function () {
 </div>
 <div id="preprocessing" class="section level2">
 <h2>Preprocessing</h2>
+<pre class="r"><code>library(dplyr)
+require(lubridate)
+library(caret)
+library(ModelMetrics)
+library(ggplot2)
+library(gridExtra)</code></pre>
 <p>We choose to use the air datasets, and merge together to match all the informations we need on the restaurants.</p>
 <pre class="r"><code>airReserve &lt;- read.csv(file=&quot;air_reserve.csv&quot;)
 airInfo &lt;- read.csv(file=&quot;air_store_info.csv&quot;)

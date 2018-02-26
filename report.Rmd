@@ -7,6 +7,12 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+require(lubridate)
+library(caret)
+library(ModelMetrics)
+library(ggplot2)
+library(gridExtra)
 ```
 
 ## Introduction
@@ -15,7 +21,7 @@ For the Kaggle Competition "Recruit Restaurant Visitor Forecasting", the aim is 
 
 ## Preprocessing
 
-```{r, include=FALSE}
+```{r, eval=FALSE}
 library(dplyr)
 require(lubridate)
 library(caret)
